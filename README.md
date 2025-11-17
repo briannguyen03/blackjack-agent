@@ -57,6 +57,9 @@ Where:
 Final Stats - Win Rate: 40.72% | Wins: 4,071,563 | Losses: 5,209,174 | Ties: 719,263
 ```
 
+* A sample scenerio is also provided to see if the agent can demonstrate some basic strategy. You can tweak this with your own example by editing
+    print_strategy_sample()
+
 * After training, a `Qtablelog.txt` file containing the **Q-table** is generated for persistent storage or verification.
 
 **Tip:** Tweaking hyperparameters can improve win rate, but it generally doesn’t exceed ~45% (or at least I haven't been able to do so).

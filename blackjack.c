@@ -384,6 +384,8 @@ void print_strategy_sample(){
         {12, 2, 0},   // Hard 12 vs dealer 2
         {18, 9, 1},   // Soft 18 vs dealer 9
         {20, 6, 0}    // Hard 20 vs dealer 6
+        //add your own states here: 
+        // {Agent hand's total, Dealer hand's total, aces available}
     };
     
     for(int i = 0; i < 4; i++){
