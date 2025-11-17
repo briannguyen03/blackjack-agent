@@ -2,8 +2,6 @@
 
 A blackjack agent that uses **Q-learning** to learn and play blackjack.
 
----
-
 ## Installation
 
 1. Clone the repository:
@@ -17,8 +15,6 @@ git clone https://github.com/yourusername/blackjack-agent.git
 ```bash
 gcc blackjack.c -o blackjack
 ```
-
----
 
 ## Usage
 
