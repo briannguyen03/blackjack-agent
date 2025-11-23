@@ -2,10 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
-#include <time.h>
 
-
-//Q table: Q[player_sum][dealer_upcard][usable_ace][action]
 float Q[22][12][2][2];
 
 typedef struct {
@@ -13,7 +10,6 @@ typedef struct {
     int dealer_upcard;
     int usable_ace;
 } State;
-
 
 #define MAX_CARDS 10
 #define DECK_SIZE 52
@@ -32,10 +28,8 @@ typedef struct {
     Card cards[MAX_CARDS];
 } Hand;
 
-//Timing var
 time_t startTime, endTime;
 double elapseTime;
-
 
 void init_deck(Card deck[]) {
     const char suits[] = {'H', 'D', 'C', 'S'};
@@ -60,14 +54,11 @@ void shuffle_deck(Card deck[]) {
     }
 }
 
-/* If we run out of cards in the middle of dealing, re-init and reshuffle */
 void ensure_deck_available(Card deck[], int amt) {
     if (deck_index + amt > DECK_SIZE) {
         init_deck(deck);
         shuffle_deck(deck);
         deck_index = 0;
-        // keep behavior visible for debugging; comment out if noisy
-        // printf("Reshuffling deck mid-game.\n");
     }
 }
 
@@ -99,7 +90,6 @@ int calc_hand(Hand *hand) {
 void print_hand(Hand* hand) {
     printf("[ ");
     for (int i = 0; i < hand->hand_index; i++) {
-        /* print rank then suit for consistency */
         printf("%c%c", hand->cards[i].rank, hand->cards[i].suit);
         if (i < hand->hand_index - 1) printf(", ");
     }
@@ -119,7 +109,6 @@ void deal_hand(Hand* hand, Card deck[], int amt) {
 
     for (int i = 0; i < amt; i++) {
         if (deck_index >= DECK_SIZE) {
-            /* fallback safety: re-init/reshuffle */
             init_deck(deck);
             shuffle_deck(deck);
             deck_index = 0;
@@ -130,8 +119,6 @@ void deal_hand(Hand* hand, Card deck[], int amt) {
     }
 }
 
-
-
 float betting_round(Hand* player) {
     float value = 0.0f;
 
@@ -140,14 +127,12 @@ float betting_round(Hand* player) {
                player->chips, player->chips);
 
         if (scanf("%f", &value) != 1) {
-            /* invalid input: consume rest of line and retry */
             int c;
             while ((c = getchar()) != '\n' && c != EOF);
             printf("Invalid input. Please enter a number.\n");
             continue;
         }
 
-        /* consume rest of line */
         int c;
         while ((c = getchar()) != '\n' && c != EOF);
 
@@ -167,7 +152,6 @@ float betting_round(Hand* player) {
     return value;
 }
 
-
 int has_usable_ace(Hand* hand){
     int value = 0;
     int aces = 0;
@@ -177,14 +161,12 @@ int has_usable_ace(Hand* hand){
         if (hand->cards[i].rank == 'A') aces++;
     }
 
-    //adjusment for counting ace as 1 if total > 21
     while (value > 21 && aces > 0) {
         value -= 10;
         aces--;
     }
 
     return (aces > 0) ? 1:0;
-
 }
 
 void printQtable(FILE* fp){
@@ -196,36 +178,27 @@ void printQtable(FILE* fp){
 }
 
 int dealer_upcard(Hand *dealer){
-    // Map dealer upcard into 1..10
-    int raw_val = card_value(dealer->cards[0]);         // 2..10 or 11 for Ace
+    int raw_val = card_value(dealer->cards[0]);
     int upcard;
 
     if (dealer->cards[0].rank == 'A') {
-        upcard = 1;            // Ace becomes 1
+        upcard = 1;
     } else if (raw_val > 10) {
-        upcard = 10;           // Should never happen for dealer but safe
+        upcard = 10;
     } else {
-        upcard = raw_val;      // 2..10 normally
+        upcard = raw_val;
     }
     
     return upcard;
 }
 
-
 void startTrain(){
-    //1. initialize a new game
-    //2. define action selection phase
-    //3. take action
-    //4. update Q-table
-    //5. repeat until termination
-
-    //Hyperparameters
     float alpha = 0.1618;
     float gamma = 0.899;
     float epsilon_start = 0.314;
     float epsilon_end = 0.02718;
     
-    int episodes = 10000000;
+    int episodes = 100000;
     float reward = 0.0;
     float epsilon_decay = (epsilon_start - epsilon_end) / episodes;
 
@@ -233,20 +206,16 @@ void startTrain(){
     int loss = 0;
     int ties = 0;
 
-
     Card deckT[DECK_SIZE];
     Hand ai = {0, 100.0f, 0, {{0}}};
     Hand dealer = {0, 0.0f, 0, {{0}}};
 
     startTime = time(NULL);
-   //action selection phase     
+   
     for (int episode = 1; episode<=episodes; episode++){
-
-        //setup epsilon decay
         float epsilon = epsilon_start - (episode * epsilon_decay);
         if (epsilon < epsilon_end) epsilon = epsilon_end;
         
-        //1. Initialize hand and deck
         ai.hand_index = 0;
         dealer.hand_index = 0; 
         ai.total = 0; 
@@ -269,21 +238,17 @@ void startTrain(){
             cur_s.dealer_upcard = dealer_upcard(&dealer);
             cur_s.usable_ace = has_usable_ace(&ai);
 
-            //check for bust
             if(ai.total > 21){
                 reward = -1.0;
                 break;
             }
 
-            //if has option
             int action;
             float randval = (float)rand() / RAND_MAX;
 
             if(randval < epsilon){
-                //explore option
                 action = rand() % 2;
             }else {
-                //exploit option
                 float q1 = Q[cur_s.player_sum][cur_s.dealer_upcard][cur_s.usable_ace][0];
                 float q2 = Q[cur_s.player_sum][cur_s.dealer_upcard][cur_s.usable_ace][1];
 
@@ -294,32 +259,28 @@ void startTrain(){
                 } else { 
                     action = rand() %2;
                 }
-            
             }
 
             if (action  == 0){
-                //Stand
                 while(calc_hand(&dealer) < 17){
                     deal_hand(&dealer, deckT, 1);
                 }
 
                 if(dealer.total > 21 || ai.total > dealer.total){
-                    reward = 1.0; //Win
+                    reward = 1.0;
                 }else if (dealer.total == ai.total){
-                    reward = 0.0; //Tie
+                    reward = 0.0;
                 }else{
-                    reward = -1.0; //Loss
+                    reward = -1.0;
                 }
 
                 float old_q = Q[cur_s.player_sum][cur_s.dealer_upcard][cur_s.usable_ace][action];
                 Q[cur_s.player_sum][cur_s.dealer_upcard][cur_s.usable_ace][action] = old_q + alpha * (reward - old_q);
                 break;
             }else{
-                //Hit
                 deal_hand(&ai, deckT, 1);
                 calc_hand(&ai);
 
-                //Get next State
                 State next_s;
                 int next_ps = ai.total;
                 if(next_ps<4) next_ps=4;
@@ -329,7 +290,6 @@ void startTrain(){
                 next_s.usable_ace = has_usable_ace(&ai);
 
                 if(ai.total > 21) {
-                    //Busted
                     reward = -1.0;
 
                     float old_q = Q[cur_s.player_sum][cur_s.dealer_upcard][cur_s.usable_ace][action];
@@ -339,7 +299,7 @@ void startTrain(){
                 }
 
                 if (ai.total == 21) {
-                    reward = 1.0;  //21
+                    reward = 1.0;
                     float old_q = Q[cur_s.player_sum][cur_s.dealer_upcard][cur_s.usable_ace][action];
                     Q[cur_s.player_sum][cur_s.dealer_upcard][cur_s.usable_ace][action] =
                         old_q + alpha * (reward - old_q);
@@ -372,20 +332,16 @@ void startTrain(){
     printf("Training Complete! Elaspe Time: [%.2f]\n", elapseTime);
     printf("Final Stats - Win Rate: %.2f%% | Wins: %d, Losses: %d, Ties: %d\n",
            final_win_rate, winc, loss, ties);
-
 }
 
 void print_strategy_sample(){
     printf("\n=== Learned Strategy Samples ===\n");
     
-    // Check a few key states
     int test_states[][3] = {
-        {16, 10, 0},  // Hard 16 vs dealer 10
-        {12, 2, 0},   // Hard 12 vs dealer 2
-        {18, 9, 1},   // Soft 18 vs dealer 9
-        {20, 6, 0}    // Hard 20 vs dealer 6
-        //add your own states here: 
-        // {Agent hand's total, Dealer hand's total, aces available}
+        {16, 10, 0},
+        {12, 2, 0},
+        {18, 9, 1},
+        {20, 6, 0}
     };
     
     for(int i = 0; i < 4; i++){
@@ -402,12 +358,7 @@ void print_strategy_sample(){
     }
 }
 
-
-
-
-
 void startGame(Card deck[], Hand* player, Hand* house) {
-    /* reset and prepare deck for a fresh shuffled deck each round */
     init_deck(deck);
     shuffle_deck(deck);
     deck_index = 0;
@@ -416,7 +367,6 @@ void startGame(Card deck[], Hand* player, Hand* house) {
     int round = 1;
     char action = 0;
 
-    /* Reset hands before dealing */
     player->hand_index = 0;
     house->hand_index = 0;
     player->total = 0;
@@ -424,13 +374,11 @@ void startGame(Card deck[], Hand* player, Hand* house) {
 
     bet = betting_round(player);
 
-    /* Deal player and dealer 2 cards each from the deck */
     deal_hand(player, deck, 2);
     deal_hand(house, deck, 2);
 
     printf("\nYou have betted $%.2f\n", bet);
 
-    /* Game loop */
     while (1) {
         printf("\n[--------------------------------------------------------]\n");
         printf("Round %d\n", round);
@@ -439,7 +387,6 @@ void startGame(Card deck[], Hand* player, Hand* house) {
         printf("Total: %d\n", calc_hand(player));
         printf("\n");
 
-        /* Show dealer's first card only (hole card hidden) */
         printf("Dealer hand: \n");
         if (house->hand_index > 0) {
             printf("[ %c%c, ?? ]\n", house->cards[0].rank, house->cards[0].suit);
@@ -447,11 +394,9 @@ void startGame(Card deck[], Hand* player, Hand* house) {
             printf("[ ?? ]\n");
         }
 
-        /* check immediate blackjack or bust after initial deal or hits */
         if (player->total == 21 || house->total == 21) {
             printf("\nBlack Jack, %s won!\n", player->total == 21 ? "You" : "Dealer");
             if (player->total == 21) {
-                /* preserve your 3x payout logic */
                 player->chips = player->chips + (3 * bet);
                 printf("Payout: %.2f\n", (3 * bet));
                 bet = 0.0f;
@@ -474,20 +419,17 @@ void startGame(Card deck[], Hand* player, Hand* house) {
             printf("Invalid input, assuming Hit.\n");
             action = 'h';
         } else {
-            /* consume any extra characters until newline */
             int ch;
             while ((ch = getchar()) != '\n' && ch != EOF);
             action = tolower(action);
         }
 
-        /* Hit or Stand or Tie */
         if (action == 's') {
             printf("Choice: Stand\n");
             while (calc_hand(house) < 17) {
                 deal_hand(house, deck, 1);
             }
 
-            /* Now evaluate winner properly */
             int playerTotal = calc_hand(player);
             int dealerTotal = calc_hand(house);
 
@@ -520,12 +462,9 @@ void startGame(Card deck[], Hand* player, Hand* house) {
         } else {
             printf("Choice: Hit\n");
             deal_hand(player, deck, 1);
-            /* recalc total after hit */
             calc_hand(player);
-            /* if player busted after hit, we will catch it on next loop iteration or below */
         }
 
-        /* After actions, check for 21 or bust (this keeps your game's original checks but ensures totals updated) */
         if (player->total == 21 || house->total == 21) {
             printf("[--------------------------------------------------------]\n");
             printf("\nBlack Jack, %s won!\n", player->total == 21 ? "You" : "Dealer");
@@ -544,7 +483,6 @@ void startGame(Card deck[], Hand* player, Hand* house) {
         round++;
     }
 
-    /* Reset hands and totals for next game */
     player->hand_index = 0;
     house->hand_index = 0;
     player->total = 0;
@@ -552,9 +490,6 @@ void startGame(Card deck[], Hand* player, Hand* house) {
 }
 
 int main() {
-    // Initialize Q-table to zeros
-    // Initialize Q-table to zeros
-
     FILE* fp = fopen("Qtablelog.txt","w");
     if(!fp){
         perror("Error opening log file");
@@ -587,7 +522,6 @@ int main() {
             printf("Invalid input, exiting.\n");
             break;
         }
-        /* consume rest of line */
         int ch;
         while ((ch = getchar()) != '\n' && ch != EOF);
 
@@ -613,4 +547,3 @@ int main() {
     fclose(fp);
     return 0;
 }
-
